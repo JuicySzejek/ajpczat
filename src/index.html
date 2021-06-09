@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ajax Long Polling</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="/libs/jquery.cssemoticons.js"></script>
+    <script src="/libs/jquery.tinyscrollbar.js"></script>
+    <script src="/components/ServerController.js"></script>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/stylesheets/jquery.cssemoticons.css">
+    <script>
+        const Commands = {"QUIT": "/quit", "NICK": "/nick", "COLOR": "/color"}
+        var serverController;
+        var nick;
+
+        window.onbeforeunload = function () {
+            serverController.onExitIRC();
+            return "Czy na pewno chcesz wyjść z tej strony?";
+        }
+
+        window.onload = function () {
+            $('#scrollbar1').tinyscrollbar();
+
+            sendButton = document.getElementById("send");
+            while (nick == undefined || nick == "") {
+                nick = prompt("Podaj nick: ");
+            }
+
+            serverController = new ServerController(nick);
+            serverController.getId(showMessage);
+
+            window.onkeydown = function (e) {
+                if (e.keyCode == 13) { // ENTER
+                    onEnter();
+                }
+            }
+
+            sendButton.onclick = onEnter;
+        }
+
+
+        function onEnter () {
+            var messageInput = document.getElementById("message");
+            var messageToSend = messageInput.value;
+            if (messageToSend != "") {
+                messageInput.value = "";
+                var indexOfClauseNick = messageToSend.indexOf(Commands.NICK);
+                var indexOfClauseColor = messageToSend.indexOf(Commands.COLOR);
+                if (indexOfClauseNick != -1) {
+                    messageToSend = messageToSend.slice(indexOfClauseNick + 6, messageToSend.length);
+
+                    serverController.setNick(messageToSend).then(
+                        function(value) {
+                            if (value.success == 1) {
+                                serverController.zwis(showMessage);
+                                messageToSend = messageToSend.trim();
+                                alert("Nick poprawnie zmieniony na " + messageToSend);
+                            } else {
+                                alert(value.message)
+                            }
+                        },
+                        function(error) { 
+                            console.log(error)
+                        }
+                    );
+                } else if (indexOfClauseColor != -1) {
+                    var beforeColorMessage = messageToSend.slice(0, indexOfClauseColor)
+                    var afterColorMessage = messageToSend.slice(indexOfClauseColor + 7, messageToSend.length)
+                    var colorOfNick = afterColorMessage.slice(0, afterColorMessage.length);
+
+                    serverController.setColorOfNick(colorOfNick).then(
+                        function(value) {
+                            alert("Kolor poprawnie zmieniony na " + colorOfNick);
+                        },
+                        function(error) { console.log(error) }
+                    );
+                } else {
+                    var userQuit = false;
+                    var indexOfQuit = messageToSend.indexOf(Commands.QUIT);
+                    while (indexOfQuit != -1) {
+                        userQuit = true;
+                        messageToSend = messageToSend.slice(0, indexOfQuit) + messageToSend.slice(indexOfQuit + 5, messageToSend.length);
+                        indexOfQuit = messageToSend.indexOf(Commands.QUIT);
+                    }
+                    serverController.sendMessage(messageToSend).then(
+                        function(value) {
+                            serverController.zwis(showMessage);
+                            showMessage({
+                                message: messageToSend,
+                                nick: serverController.nick,
+                                color: serverController.color,
+                                time: new Date()
+                            })
+                            if (userQuit == true) {
+                                window.location.reload(true);
+                            }
+                        },
+                        function(error) { console.log(error) }
+                    );
+                }
+            }
+        }
+
+        function showMessage (obj) {
+            let message = obj.message;
+            let nick = obj.nick;
+            let color = obj.color;
+            let time = obj.time;
+
+            let span_nick = document.createElement('span');
+            span_nick.style.color = color;
+            span_nick.innerHTML = nick;
+
+            let span_message = document.createElement('span');
+            span_message.innerHTML = message;
+            span_message.classList.add("message");
+
+            var div = document.createElement('div');
+            div.innerHTML = time.toLocaleString() + " - ";
+            div.appendChild(span_nick);
+            div.innerHTML += ": ";
+            div.appendChild(span_message);
+            document.getElementsByClassName('overview')[0].appendChild(div);
+
+            var scrollbar1 = $("#scrollbar1").data("plugin_tinyscrollbar");
+            scrollbar1.update();
+
+            $('.overview:first').css({top: (($('.overview:first').height() - $('.viewport:first').height()) * (-1)) });
+            $('.thumb:first').css({top: $('.track:first').height() - $('.thumb:first').height()});
+
+            $(".message").emoticonize();
+        }
+    </script>
+</head>
+<body>
+    <div id="scrollbar1">
+        <div class="scrollbar"><div class="track"><div class="thumb"><div class="end"></div></div></div></div>
+            <div class="viewport">
+                 <div class="overview">
+                 </div>
+            </div>
+    </div>
+    <input id="message" type="text">
+    <input id="send" type="button" value="Wyślij wiadomość">
+</body>
+</html>
