@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 class Database {
     constructor () {
-        mongoose.connect('mongodb+srv://szwej:TLs0qoOEInkuB5lL@cluster0.gghgc.mongodb.net/myFirstDatabase?retryWrites=true&w=majority');
+        mongoose.connect('mongodb+srv://szwej:U8aF5XUdrdSgVPlw@cluster0.gghgc.mongodb.net/myFirstDatabase?retryWrites=true&w=majority');
 
         this.connectToMongo();
     }
